@@ -6,6 +6,11 @@
   const collectionView = document.getElementById("collection-view");
   const liveView = document.getElementById("live-view");
 
+  const goToCollections = document.getElementById("go-to-collections");
+  const goToLive = document.getElementById("go-to-live");
+  const backHomeFromCollections = document.getElementById("back-home-from-collections");
+  const backToCollections = document.getElementById("back-to-collections");
+  const backHomeFromLive = document.getElementById("back-home-from-live");
   const homeCollectionsMeta = document.getElementById("home-collections-meta");
 
   const collectionsGrid = document.getElementById("collections-grid");
@@ -228,9 +233,10 @@
     const article = document.createElement("article");
     article.className = "collection-card";
 
-    const openLink = document.createElement("a");
-    openLink.href = buildCollectionRoute(collection.id);
-    openLink.className = "collection-card-button";
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "collection-card-button";
+    openButton.addEventListener("click", () => navigateTo(buildCollectionRoute(collection.id)));
 
     const media = document.createElement("div");
     media.className = "collection-card-media";
@@ -251,7 +257,7 @@
     countBadge.className = "collection-card-count";
     countBadge.textContent = `${collection.count} videos`;
     media.appendChild(countBadge);
-    openLink.appendChild(media);
+    openButton.appendChild(media);
 
     const content = document.createElement("div");
     content.className = "collection-card-content";
@@ -266,8 +272,8 @@
 
     content.appendChild(title);
     content.appendChild(description);
-    openLink.appendChild(content);
-    article.appendChild(openLink);
+    openButton.appendChild(content);
+    article.appendChild(openButton);
 
     return article;
   };
@@ -378,6 +384,12 @@
   totalCollections.textContent = `${collections.length} colecciones`;
   totalVideos.textContent = `${totalVideoCount} videos`;
   homeCollectionsMeta.textContent = `${collections.length} colecciones | ${totalVideoCount} videos`;
+
+  goToCollections.addEventListener("click", () => navigateTo("#/collections"));
+  goToLive.addEventListener("click", () => navigateTo("#/live"));
+  backHomeFromCollections.addEventListener("click", () => navigateTo("#/"));
+  backToCollections.addEventListener("click", () => navigateTo("#/collections"));
+  backHomeFromLive.addEventListener("click", () => navigateTo("#/"));
 
   collectionSearch.addEventListener("input", (event) => {
     state.collectionQuery = event.target.value || "";
