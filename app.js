@@ -6,18 +6,13 @@
   const collectionView = document.getElementById("collection-view");
   const liveView = document.getElementById("live-view");
 
-  const goToCollections = document.getElementById("go-to-collections");
-  const goToLive = document.getElementById("go-to-live");
   const homeCollectionsMeta = document.getElementById("home-collections-meta");
-  const backHomeFromCollections = document.getElementById("back-home-from-collections");
-  const backHomeFromLive = document.getElementById("back-home-from-live");
 
   const collectionsGrid = document.getElementById("collections-grid");
   const collectionSearch = document.getElementById("collection-search");
   const totalCollections = document.getElementById("total-collections");
   const totalVideos = document.getElementById("total-videos");
 
-  const backButton = document.getElementById("back-to-collections");
   const collectionTitle = document.getElementById("collection-title");
   const collectionDescription = document.getElementById("collection-description");
   const collectionCount = document.getElementById("collection-count");
@@ -122,6 +117,39 @@
     postsView: "grid"
   };
 
+  const buildCollectionRoute = (collectionId) => `#/collections/${encodeURIComponent(collectionId)}`;
+
+  const navigateTo = (routeHash) => {
+    if (window.location.hash === routeHash) {
+      handleRoute();
+      return;
+    }
+    window.location.hash = routeHash;
+  };
+
+  const getRoute = () => {
+    const cleanHash = window.location.hash.replace(/^#\/?/, "");
+    const segments = cleanHash.split("/").filter(Boolean);
+
+    if (segments.length === 0) {
+      return { view: "home" };
+    }
+
+    if (segments[0] === "collections" && segments.length === 1) {
+      return { view: "collections" };
+    }
+
+    if (segments[0] === "collections" && segments.length >= 2) {
+      return { view: "collection-detail", collectionId: decodeURIComponent(segments.slice(1).join("/")) };
+    }
+
+    if (segments[0] === "live") {
+      return { view: "live" };
+    }
+
+    return { view: "home" };
+  };
+
   const getSelectedCollection = () =>
     collections.find((collection) => collection.id === state.selectedCollectionId) || null;
 
@@ -162,7 +190,7 @@
 
     const selected = getSelectedCollection();
     if (!selected) {
-      showCollectionsView();
+      navigateTo("#/collections");
       return;
     }
 
@@ -200,10 +228,9 @@
     const article = document.createElement("article");
     article.className = "collection-card";
 
-    const openButton = document.createElement("button");
-    openButton.type = "button";
-    openButton.className = "collection-card-button";
-    openButton.addEventListener("click", () => showCollectionDetailView(collection.id));
+    const openLink = document.createElement("a");
+    openLink.href = buildCollectionRoute(collection.id);
+    openLink.className = "collection-card-button";
 
     const media = document.createElement("div");
     media.className = "collection-card-media";
@@ -224,7 +251,7 @@
     countBadge.className = "collection-card-count";
     countBadge.textContent = `${collection.count} videos`;
     media.appendChild(countBadge);
-    openButton.appendChild(media);
+    openLink.appendChild(media);
 
     const content = document.createElement("div");
     content.className = "collection-card-content";
@@ -239,8 +266,8 @@
 
     content.appendChild(title);
     content.appendChild(description);
-    openButton.appendChild(content);
-    article.appendChild(openButton);
+    openLink.appendChild(content);
+    article.appendChild(openLink);
 
     return article;
   };
@@ -352,17 +379,10 @@
   totalVideos.textContent = `${totalVideoCount} videos`;
   homeCollectionsMeta.textContent = `${collections.length} colecciones | ${totalVideoCount} videos`;
 
-  goToCollections.addEventListener("click", showCollectionsView);
-  goToLive.addEventListener("click", showLiveView);
-  backHomeFromCollections.addEventListener("click", showHomeView);
-  backHomeFromLive.addEventListener("click", showHomeView);
-
   collectionSearch.addEventListener("input", (event) => {
     state.collectionQuery = event.target.value || "";
     renderCollections();
   });
-
-  backButton.addEventListener("click", showCollectionsView);
 
   videoSearch.addEventListener("input", (event) => {
     state.videoQuery = event.target.value || "";
@@ -383,5 +403,32 @@
     renderCollectionPosts();
   });
 
-  showHomeView();
+  const handleRoute = () => {
+    const route = getRoute();
+
+    if (route.view === "collections") {
+      showCollectionsView();
+      return;
+    }
+
+    if (route.view === "collection-detail") {
+      showCollectionDetailView(route.collectionId);
+      return;
+    }
+
+    if (route.view === "live") {
+      showLiveView();
+      return;
+    }
+
+    showHomeView();
+  };
+
+  window.addEventListener("hashchange", handleRoute);
+
+  if (!window.location.hash) {
+    window.location.hash = "#/";
+  } else {
+    handleRoute();
+  }
 })();
