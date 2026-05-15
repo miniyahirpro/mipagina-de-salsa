@@ -1,0 +1,142 @@
+﻿<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Astro Videos</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-left"></div>
+    <div class="bg-shape bg-shape-right"></div>
+    <main class="page-shell">
+      <section id="home-view" class="view view-home">
+        <header class="home-header">
+          <p class="eyebrow">Astro Online</p>
+          <h1>Inicio</h1>
+          <p class="collections-copy">
+            Explora el contenido por secciones y accede facilmente a cada categoria.
+          </p>
+        </header>
+
+        <section class="home-grid" aria-label="Secciones principales">
+          <button id="go-to-collections" class="home-card" type="button">
+            <span class="home-card-eyebrow">Seccion 1</span>
+            <h2>Collections</h2>
+            <p>Explora las colecciones y entra al home de cada una con sus videos organizados.</p>
+            <span id="home-collections-meta" class="home-card-meta">0 colecciones</span>
+          </button>
+
+          <button id="go-to-live" class="home-card home-card-muted" type="button">
+            <span class="home-card-eyebrow">Seccion 2</span>
+            <h2>Clases en vivo</h2>
+            <p>Seccion en preparacion para publicar sesiones y repeticiones en vivo.</p>
+            <span class="home-card-meta">Proximamente</span>
+          </button>
+        </section>
+      </section>
+
+      <section id="collections-view" class="view view-collections is-hidden">
+        <header class="section-top">
+          <button
+            id="back-home-from-collections"
+            class="icon-btn icon-btn-circle"
+            type="button"
+            aria-label="Volver al inicio"
+          >
+            <
+          </button>
+        </header>
+
+        <header class="collections-header">
+          <p class="eyebrow">Astro Online</p>
+          <h1>Collections</h1>
+          <p class="collections-copy">
+            Elige una coleccion para entrar a su home y ver todos sus videos organizados.
+          </p>
+          <div class="collections-meta">
+            <span id="total-collections">0 colecciones</span>
+            <span id="total-videos">0 videos</span>
+          </div>
+          <label class="search-wrap" for="collection-search">
+            <span>Buscar coleccion</span>
+            <input
+              id="collection-search"
+              type="search"
+              placeholder="Ej: salsa basico, bachata, intermedio..."
+              autocomplete="off"
+            />
+          </label>
+        </header>
+
+        <section id="collections-grid" class="collections-grid" aria-label="Listado de colecciones"></section>
+      </section>
+
+      <section id="collection-view" class="view view-collection is-hidden">
+        <header class="collection-top">
+          <button id="back-to-collections" class="icon-btn icon-btn-circle" type="button" aria-label="Volver a colecciones">
+            <
+          </button>
+          <div class="top-actions">
+            <button id="view-grid" class="icon-btn is-active" type="button" aria-label="Vista en cuadricula">
+              Grid
+            </button>
+            <button id="view-list" class="icon-btn" type="button" aria-label="Vista en lista">
+              List
+            </button>
+          </div>
+        </header>
+
+        <section class="collection-hero">
+          <div class="collection-copy">
+            <p class="collection-brand">Astro Online | Salsa + Bachata</p>
+            <h2 id="collection-title">Coleccion</h2>
+            <p id="collection-description">Descripcion de la coleccion.</p>
+            <p class="collection-count-line">
+              <strong>In this collection</strong>
+              <span id="collection-count">0 posts</span>
+            </p>
+          </div>
+          <div class="collection-cover">
+            <img id="collection-cover-image" src="" alt="Portada de coleccion" />
+            <div id="collection-cover-fallback" class="collection-cover-fallback is-hidden">Sin portada</div>
+          </div>
+        </section>
+
+        <section class="collection-controls">
+          <label class="search-wrap" for="video-search">
+            <span>Search posts</span>
+            <input id="video-search" type="search" placeholder="Buscar videos..." autocomplete="off" />
+          </label>
+        </section>
+
+        <section id="collection-videos" class="posts-grid" aria-label="Videos de la coleccion"></section>
+      </section>
+
+      <section id="live-view" class="view view-live is-hidden">
+        <header class="section-top">
+          <button
+            id="back-home-from-live"
+            class="icon-btn icon-btn-circle"
+            type="button"
+            aria-label="Volver al inicio"
+          >
+            <
+          </button>
+        </header>
+
+        <section class="live-placeholder">
+          <p class="eyebrow">Astro Online</p>
+          <h2>Clases en vivo</h2>
+          <p>
+            Esta seccion se encuentra en preparacion. Proximamente se publicaran aqui las clases en vivo y sus enlaces.
+          </p>
+          <div class="live-placeholder-note">Estado: en preparacion</div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./videos-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
