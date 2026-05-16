@@ -1,6 +1,9 @@
-﻿param(
+param(
   [Parameter(Mandatory = $false)]
-  [string]$CsvPath = "c:\Users\manue\Downloads\patreon_astro_v15_FLAG_GENERAL\salida_astro_v15_flag_general\02_colecciones_links_video.csv",
+  [string]$CollectionsCsvPath = "c:\Users\manue\Downloads\patreon_astro_v15_FLAG_GENERAL\salida_astro_v15_flag_general\02_colecciones_links_video.csv",
+
+  [Parameter(Mandatory = $false)]
+  [string]$GeneralPostsCsvPath = "c:\Users\manue\Downloads\patreon_astro_v15_FLAG_GENERAL\salida_astro_v15_flag_general\03_posts_generales_links_video.csv",
 
   [Parameter(Mandatory = $false)]
   [string]$OutFile = (Join-Path $PSScriptRoot "..\videos-data.js")
@@ -66,7 +69,41 @@ function Get-YouTubeId([string]$Url) {
   return $null
 }
 
-function Is-YouTubeLink([string]$Url) {
+function Get-LinkRank([string]$Url) {
+  if ([string]::IsNullOrWhiteSpace($Url)) {
+    return 99
+  }
+
+  try {
+    $uri = [Uri]$Url
+  } catch {
+    return 99
+  }
+
+  $domain = $uri.Host.ToLowerInvariant()
+  $path = $uri.AbsolutePath.Trim("/").ToLowerInvariant()
+
+  if ($domain -eq "youtu.be") {
+    return 0
+  }
+
+  if ($domain -like "*youtube.com") {
+    if ($path -eq "watch" -or $path -like "live/*" -or $path -like "shorts/*") {
+      return 0
+    }
+    if ($path -like "embed/*") {
+      return 2
+    }
+  }
+
+  if ($domain -like "*youtube-nocookie.com" -and $path -like "embed/*") {
+    return 3
+  }
+
+  return 4
+}
+
+function Is-YouTubeLikeLink([string]$Url) {
   if ([string]::IsNullOrWhiteSpace($Url)) {
     return $false
   }
@@ -86,8 +123,6 @@ function Get-CleanTitle([string]$RawTitle) {
   if (-not $title) {
     return "Sin titulo"
   }
-
-  # Some rows start with source prefixes from scraping.
   $title = $title -replace "^(YouTube|Vimeo|Livestream)\s+", ""
   return $title.Trim()
 }
@@ -98,110 +133,181 @@ function Get-CleanCollectionName([string]$RawCollection) {
     return "Sin coleccion"
   }
 
-  # Remove leading numeric labels such as "1. "
   $collection = $collection -replace "^\s*\d+\.\s*", ""
-  # Remove bracketed IDs such as "[18438]"
   $collection = $collection -replace "\[[^\]]*\]", ""
-  # Collapse repeated spaces left by cleanup
   $collection = ($collection -replace "\s{2,}", " ").Trim()
 
   if (-not $collection) {
     return "Sin coleccion"
   }
-
   return $collection
 }
 
-if (-not (Test-Path -LiteralPath $CsvPath)) {
-  throw "No se encontro el CSV: $CsvPath"
-}
+function New-VideoObject {
+  param(
+    [string]$Section,
+    [string]$Collection,
+    [string]$PostTitle,
+    [string]$PostUrl,
+    [string]$RawVideoUrl,
+    [string]$Source,
+    [int]$Index
+  )
 
-$rows = Import-Csv -Path $CsvPath
-$videos = New-Object System.Collections.Generic.List[object]
-$dedupe = @{}
-$collectionOrder = @{}
-$collectionNames = New-Object System.Collections.Generic.List[string]
-$index = 0
-
-foreach ($row in $rows) {
-  $collection = Get-CleanCollectionName (Get-Text $row.coleccion)
-  $postTitle = Get-CleanTitle (Get-Text $row.post_title)
-  $postUrl = Get-Text $row.post_url
-  $source = Get-Text $row.source
-  $rawVideoUrl = Get-Text $row.video_url
-
-  if (-not $collectionOrder.ContainsKey($collection)) {
-    $collectionOrder[$collection] = $collectionNames.Count
-    $collectionNames.Add($collection)
-  }
-
-  $youtubeId = Get-YouTubeId $rawVideoUrl
+  $youtubeId = Get-YouTubeId $RawVideoUrl
   $watchUrl = $null
   $embedUrl = $null
   $thumbnailUrl = $null
+  $linkRank = Get-LinkRank $RawVideoUrl
 
   if ($youtubeId) {
     $watchUrl = "https://www.youtube.com/watch?v=$youtubeId"
     $embedUrl = "https://www.youtube.com/embed/$youtubeId"
     $thumbnailUrl = "https://i.ytimg.com/vi/$youtubeId/hqdefault.jpg"
-  } elseif ($rawVideoUrl) {
-    if ((Is-YouTubeLink $rawVideoUrl) -and $postUrl) {
-      # Broken or partial YouTube URL, use Patreon post as safer fallback.
-      $watchUrl = $postUrl
+  } elseif ($RawVideoUrl) {
+    if ((Is-YouTubeLikeLink $RawVideoUrl) -and $PostUrl) {
+      $watchUrl = $PostUrl
     } else {
-      $watchUrl = $rawVideoUrl
+      $watchUrl = $RawVideoUrl
     }
-  } elseif ($postUrl) {
-    $watchUrl = $postUrl
+  } elseif ($PostUrl) {
+    $watchUrl = $PostUrl
   } else {
+    return $null
+  }
+
+  return [PSCustomObject]@{
+    section = $Section
+    collection = $Collection
+    title = $PostTitle
+    description = if ($PostTitle.Length -gt 140) { $PostTitle.Substring(0, 140) + "..." } else { $PostTitle }
+    source = $Source
+    youtubeId = $youtubeId
+    watchUrl = $watchUrl
+    embedUrl = $embedUrl
+    thumbnailUrl = $thumbnailUrl
+    postUrl = $PostUrl
+    rank = $linkRank
+    index = $Index
+  }
+}
+
+function Merge-PreferredVideo {
+  param(
+    [hashtable]$Map,
+    [string]$Key,
+    [object]$Candidate
+  )
+
+  if (-not $Map.ContainsKey($Key)) {
+    $Map[$Key] = $Candidate
+    return
+  }
+
+  $current = $Map[$Key]
+  if ($Candidate.rank -lt $current.rank) {
+    # Prefer direct YouTube links (watch/live/youtu.be) over embed/nocookie duplicates.
+    $Map[$Key] = $Candidate
+  }
+}
+
+if (-not (Test-Path -LiteralPath $CollectionsCsvPath)) {
+  throw "No se encontro el CSV de colecciones: $CollectionsCsvPath"
+}
+if (-not (Test-Path -LiteralPath $GeneralPostsCsvPath)) {
+  throw "No se encontro el CSV de posts generales: $GeneralPostsCsvPath"
+}
+
+$collectionRows = Import-Csv -Path $CollectionsCsvPath
+$generalRows = Import-Csv -Path $GeneralPostsCsvPath
+
+$collectionOrder = [ordered]@{}
+$collectionMap = @{}
+$collectionIndex = 0
+
+foreach ($row in $collectionRows) {
+  $collection = Get-CleanCollectionName (Get-Text $row.coleccion)
+  $title = Get-CleanTitle (Get-Text $row.post_title)
+  $postUrl = Get-Text $row.post_url
+  $videoUrl = Get-Text $row.video_url
+  $source = Get-Text $row.source
+
+  if (-not $collectionOrder.Contains($collection)) {
+    $collectionOrder[$collection] = $true
+  }
+
+  $video = New-VideoObject -Section "collections" -Collection $collection -PostTitle $title -PostUrl $postUrl -RawVideoUrl $videoUrl -Source $source -Index $collectionIndex
+  if ($null -eq $video) {
     continue
   }
 
-  $dedupeKey = if ($youtubeId) {
-    "$collection|$postUrl|$youtubeId"
+  $key = if ($video.youtubeId) {
+    "collections|$collection|$postUrl|$($video.youtubeId)"
   } else {
-    "$collection|$postUrl|$watchUrl|$postTitle"
+    "collections|$collection|$postUrl|$($video.watchUrl)|$title"
   }
 
-  if ($dedupe.ContainsKey($dedupeKey)) {
+  Merge-PreferredVideo -Map $collectionMap -Key $key -Candidate $video
+  $collectionIndex++
+}
+
+$orderedCollectionVideos = New-Object System.Collections.Generic.List[object]
+foreach ($collectionName in $collectionOrder.Keys) {
+  $videos = $collectionMap.Values | Where-Object { $_.collection -eq $collectionName } | Sort-Object index
+  foreach ($v in $videos) {
+    $orderedCollectionVideos.Add($v)
+  }
+}
+
+$collectionGroups = New-Object System.Collections.Generic.List[object]
+foreach ($collectionName in $collectionOrder.Keys) {
+  $videos = $orderedCollectionVideos | Where-Object { $_.collection -eq $collectionName }
+  $collectionGroups.Add([PSCustomObject]@{
+      name = $collectionName
+      count = $videos.Count
+      videos = $videos
+    })
+}
+
+$generalMap = @{}
+$generalIndex = 0
+foreach ($row in $generalRows) {
+  $title = Get-CleanTitle (Get-Text $row.post_title)
+  $postUrl = Get-Text $row.post_url
+  $videoUrl = Get-Text $row.video_url
+  $source = Get-Text $row.source
+
+  $video = New-VideoObject -Section "general" -Collection "Clases en vivo" -PostTitle $title -PostUrl $postUrl -RawVideoUrl $videoUrl -Source $source -Index $generalIndex
+  if ($null -eq $video) {
     continue
   }
-  $dedupe[$dedupeKey] = $true
 
-  $videos.Add([PSCustomObject]@{
-      index = $index
-      collection = $collection
-      title = $postTitle
-      description = if ($postTitle.Length -gt 130) { $postTitle.Substring(0, 130) + "..." } else { $postTitle }
-      source = $source
-      youtubeId = $youtubeId
-      watchUrl = $watchUrl
-      embedUrl = $embedUrl
-      thumbnailUrl = $thumbnailUrl
-      postUrl = $postUrl
-    })
-  $index++
+  $key = if ($video.youtubeId) {
+    "general|$postUrl|$($video.youtubeId)"
+  } else {
+    "general|$postUrl|$($video.watchUrl)|$title"
+  }
+
+  Merge-PreferredVideo -Map $generalMap -Key $key -Candidate $video
+  $generalIndex++
 }
 
-$groups = New-Object System.Collections.Generic.List[object]
-foreach ($name in $collectionNames) {
-  $items = $videos | Where-Object { $_.collection -eq $name } | Sort-Object index
-  $groups.Add([PSCustomObject]@{
-      name = $name
-      count = $items.Count
-      videos = $items
-    })
-}
+$generalPosts = $generalMap.Values | Sort-Object index
 
 $output = [PSCustomObject]@{
   generatedAt = (Get-Date).ToString("s")
-  sourceCsv = $CsvPath
-  totalCollections = $groups.Count
-  totalVideos = $videos.Count
-  collections = $groups
+  sourceCsv = [PSCustomObject]@{
+    collections = $CollectionsCsvPath
+    generalPosts = $GeneralPostsCsvPath
+  }
+  totalCollections = $collectionGroups.Count
+  totalVideos = $orderedCollectionVideos.Count
+  collections = $collectionGroups
+  totalGeneralPosts = $generalPosts.Count
+  generalPosts = $generalPosts
 }
 
-$json = $output | ConvertTo-Json -Depth 8
+$json = $output | ConvertTo-Json -Depth 9
 $js = @(
   "// Auto-generated by scripts/build-videos-data.ps1",
   "window.VIDEO_LIBRARY = $json;"
@@ -210,5 +316,6 @@ $js = @(
 Set-Content -Path $OutFile -Value $js -Encoding UTF8
 
 Write-Output "Archivo generado: $OutFile"
-Write-Output "Colecciones: $($groups.Count)"
-Write-Output "Videos: $($videos.Count)"
+Write-Output "Colecciones: $($collectionGroups.Count)"
+Write-Output "Videos de colecciones: $($orderedCollectionVideos.Count)"
+Write-Output "Posts generales: $($generalPosts.Count)"

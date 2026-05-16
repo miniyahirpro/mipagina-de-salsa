@@ -12,6 +12,7 @@
   const backToCollections = document.getElementById("back-to-collections");
   const backHomeFromLive = document.getElementById("back-home-from-live");
   const homeCollectionsMeta = document.getElementById("home-collections-meta");
+  const homeLiveMeta = document.getElementById("home-live-meta");
 
   const collectionsGrid = document.getElementById("collections-grid");
   const collectionSearch = document.getElementById("collection-search");
@@ -27,6 +28,10 @@
   const collectionVideos = document.getElementById("collection-videos");
   const viewGridButton = document.getElementById("view-grid");
   const viewListButton = document.getElementById("view-list");
+
+  const totalLivePosts = document.getElementById("total-live-posts");
+  const liveSearch = document.getElementById("live-search");
+  const livePostsContainer = document.getElementById("live-posts");
 
   const normalize = (value) =>
     (value || "")
@@ -113,12 +118,15 @@
     };
   });
 
+  const generalPosts = Array.isArray(data.generalPosts) ? data.generalPosts : [];
+
   const totalVideoCount = data.totalVideos || collections.reduce((sum, item) => sum + item.count, 0);
 
   const state = {
     collectionQuery: "",
     selectedCollectionId: null,
     videoQuery: "",
+    liveQuery: "",
     postsView: "grid"
   };
 
@@ -182,6 +190,7 @@
   const showLiveView = () => {
     hideAllViews();
     liveView.classList.remove("is-hidden");
+    renderLivePosts();
     window.scrollTo(0, 0);
   };
 
@@ -381,9 +390,54 @@
     }
   };
 
+  const getFilteredLivePosts = () => {
+    const query = normalize(state.liveQuery);
+    if (!query) {
+      return generalPosts;
+    }
+
+    return generalPosts.filter((video) => {
+      const searchable = normalize(`${video.title} ${video.description}`);
+      return searchable.includes(query);
+    });
+  };
+
+  const renderLivePosts = () => {
+    if (!livePostsContainer) {
+      return;
+    }
+
+    const filtered = getFilteredLivePosts();
+
+    if (totalLivePosts) {
+      totalLivePosts.textContent =
+        filtered.length === generalPosts.length
+          ? `${generalPosts.length} clases`
+          : `${filtered.length} de ${generalPosts.length} clases`;
+    }
+
+    livePostsContainer.className = "posts-grid";
+    livePostsContainer.innerHTML = "";
+
+    if (!filtered.length) {
+      livePostsContainer.innerHTML = '<div class="empty-state">No hay clases con ese filtro.</div>';
+      return;
+    }
+
+    for (const video of filtered) {
+      livePostsContainer.appendChild(buildVideoCard(video));
+    }
+  };
+
   totalCollections.textContent = `${collections.length} colecciones`;
   totalVideos.textContent = `${totalVideoCount} videos`;
   homeCollectionsMeta.textContent = `${collections.length} colecciones | ${totalVideoCount} videos`;
+  if (homeLiveMeta) {
+    homeLiveMeta.textContent = `${generalPosts.length} clases`;
+  }
+  if (totalLivePosts) {
+    totalLivePosts.textContent = `${generalPosts.length} clases`;
+  }
 
   goToCollections.addEventListener("click", () => navigateTo("#/collections"));
   goToLive.addEventListener("click", () => navigateTo("#/live"));
@@ -400,6 +454,13 @@
     state.videoQuery = event.target.value || "";
     renderCollectionPosts();
   });
+
+  if (liveSearch) {
+    liveSearch.addEventListener("input", (event) => {
+      state.liveQuery = event.target.value || "";
+      renderLivePosts();
+    });
+  }
 
   viewGridButton.addEventListener("click", () => {
     state.postsView = "grid";

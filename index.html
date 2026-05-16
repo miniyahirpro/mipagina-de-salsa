@@ -30,8 +30,8 @@
           <button id="go-to-live" class="home-card home-card-muted" type="button">
             <span class="home-card-eyebrow">Seccion 2</span>
             <h2>Clases en vivo</h2>
-            <p>Seccion en preparacion para publicar sesiones y repeticiones en vivo.</p>
-            <span class="home-card-meta">Proximamente</span>
+            <p>Listado general de sesiones en vivo con enlaces directos a cada clase.</p>
+            <span id="home-live-meta" class="home-card-meta">0 clases</span>
           </button>
         </section>
       </section>
@@ -129,10 +129,19 @@
           <p class="eyebrow">Astro Online</p>
           <h2>Clases en vivo</h2>
           <p>
-            Esta seccion se encuentra en preparacion. Proximamente se publicaran aqui las clases en vivo y sus enlaces.
+            Archivo general de clases y sesiones en vivo con acceso directo al video.
           </p>
-          <div class="live-placeholder-note">Estado: en preparacion</div>
+          <div id="total-live-posts" class="live-placeholder-note">0 clases</div>
         </section>
+
+        <section class="collection-controls">
+          <label class="search-wrap" for="live-search">
+            <span>Buscar clase en vivo</span>
+            <input id="live-search" type="search" placeholder="Ej: salsa, bachata, mayo..." autocomplete="off" />
+          </label>
+        </section>
+
+        <section id="live-posts" class="posts-grid" aria-label="Posts generales de clases en vivo"></section>
       </section>
     </main>
 
